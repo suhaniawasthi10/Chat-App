@@ -6,28 +6,26 @@ import {
   rejectFriendRequest,
   getFriendsList
 } from '../api/friends';
+import { escapeHtml } from '../utils/sanitize';
 
 export const renderFriendsPage = async (app: HTMLElement) => {
   app.innerHTML = `
-    <div class="main-container">
-      <div class="sidebar">
-        <div class="sidebar-header">
-          <h1>Friends</h1>
-          <div class="sidebar-actions">
-            <button id="back-btn">← Back</button>
-          </div>
+    <div class="friends-page">
+      <div class="friends-header">
+        <div class="friends-header-left">
+          <button id="back-btn" class="btn btn-ghost">← Back</button>
+          <h1>👥 Friends</h1>
         </div>
+      </div>
+      
+      <div class="friends-content">
         <div class="tabs">
           <button class="tab active" data-tab="users">Find Users</button>
           <button class="tab" data-tab="requests">Requests</button>
           <button class="tab" data-tab="friends">My Friends</button>
         </div>
-        <div id="tab-content" style="padding: 20px; overflow-y: auto; flex: 1;"></div>
-      </div>
-      <div class="chat-area">
-        <div class="empty-state" style="flex: 1; display: flex; align-items: center; justify-content: center;">
-          Manage your friends and connections
-        </div>
+        
+        <div id="tab-content" class="tab-content"></div>
       </div>
     </div>
   `;
@@ -42,8 +40,10 @@ export const renderFriendsPage = async (app: HTMLElement) => {
 
   const renderUsersTab = async () => {
     tabContent.innerHTML = `
-      <input type="text" id="search-box" class="search-box" placeholder="Search users..." />
-      <div id="users-list" class="user-list">
+      <div class="search-container">
+        <input type="text" id="search-box" placeholder="Search users..." />
+      </div>
+      <div id="users-list" class="users-grid">
         <div class="empty-state">Loading users...</div>
       </div>
     `;
@@ -51,104 +51,104 @@ export const renderFriendsPage = async (app: HTMLElement) => {
     const searchBox = document.getElementById('search-box') as HTMLInputElement;
     const usersList = document.getElementById('users-list') as HTMLElement;
 
-    const loadUsers = async (query?: string) => {
-      try {
-        const users = await getUsers(query);
+    try {
+      const users = await getUsers();
 
-        if (users.length === 0) {
-          usersList.innerHTML = '<div class="empty-state">No users found</div>';
-        } else {
-          usersList.innerHTML = users.map((user: any) => {
-            const initials = user.username
-              .split(' ')
-              .map((n: string) => n[0])
-              .join('')
-              .substring(0, 2)
-              .toUpperCase();
+      if (users.length === 0) {
+        usersList.innerHTML = '<div class="empty-state">No users found</div>';
+      } else {
+        const renderUsers = (filteredUsers: any[]) => {
+          usersList.innerHTML = filteredUsers.map((user: any) => {
+            const initials = user.username.substring(0, 2).toUpperCase();
 
             return `
-              <div class="user-item">
-                <div class="user-info">
-                  <div class="avatar">${initials}</div>
-                  <div>
-                    <strong>${user.username}</strong><br/>
-                    <small style="color: #888;">${user.email}</small>
-                  </div>
+              <div class="user-card">
+                <div class="avatar">${initials}</div>
+                <div class="user-card-info">
+                  <strong>${escapeHtml(user.username)}</strong>
+                  <span>${escapeHtml(user.email)}</span>
                 </div>
-                <button class="btn-send" data-id="${user.id}">Add Friend</button>
+                <button class="btn btn-primary btn-sm" data-id="${user.id}">Add Friend</button>
               </div>
             `;
           }).join('');
 
-          document.querySelectorAll('.btn-send').forEach(btn => {
+          document.querySelectorAll('.user-card .btn-primary').forEach(btn => {
             btn.addEventListener('click', async () => {
               const userId = (btn as HTMLElement).dataset.id!;
               try {
                 await sendFriendRequest(userId);
-                alert('Friend request sent!');
+                (btn as HTMLButtonElement).textContent = 'Sent ✓';
+                (btn as HTMLButtonElement).disabled = true;
+                (btn as HTMLButtonElement).classList.remove('btn-primary');
+                (btn as HTMLButtonElement).classList.add('btn-secondary');
               } catch (error: any) {
-                alert(`Error: ${error.message}`);
+                alert(error.message);
               }
             });
           });
-        }
-      } catch (error: any) {
-        usersList.innerHTML = `<div class="error">${error.message}</div>`;
+        };
+
+        renderUsers(users);
+
+        searchBox.addEventListener('input', () => {
+          const query = searchBox.value.toLowerCase();
+          const filtered = users.filter((u: any) =>
+            u.username.toLowerCase().includes(query) ||
+            u.email.toLowerCase().includes(query)
+          );
+          renderUsers(filtered);
+        });
       }
-    };
-
-    searchBox.addEventListener('input', () => {
-      const query = searchBox.value.trim();
-      loadUsers(query || undefined);
-    });
-
-    await loadUsers();
+    } catch (error: any) {
+      usersList.innerHTML = `<div class="error">${error.message}</div>`;
+    }
   };
 
   const renderRequestsTab = async () => {
-    tabContent.innerHTML = '<div id="requests-list" class="request-list"><div class="empty-state">Loading...</div></div>';
-    const requestsList = document.getElementById('requests-list') as HTMLElement;
+    tabContent.innerHTML = '<div class="empty-state">Loading requests...</div>';
 
     try {
       const requests = await getFriendRequests();
 
       if (requests.length === 0) {
-        requestsList.innerHTML = '<div class="empty-state">No pending requests</div>';
+        tabContent.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">📭</div>
+            <p>No pending friend requests</p>
+          </div>
+        `;
       } else {
-        requestsList.innerHTML = requests.map((req: any) => {
-          const initials = req.from.username
-            .split(' ')
-            .map((n: string) => n[0])
-            .join('')
-            .substring(0, 2)
-            .toUpperCase();
+        tabContent.innerHTML = `
+          <div class="users-grid">
+            ${requests.map((req: any) => {
+          const initials = req.from.username.substring(0, 2).toUpperCase();
 
           return `
-            <div class="request-item">
-              <div class="user-info">
-                <div class="avatar">${initials}</div>
-                <div>
-                  <strong>${req.from.username}</strong><br/>
-                  <small style="color: #888;">${req.from.email}</small>
+                <div class="user-card request-card">
+                  <div class="avatar">${initials}</div>
+                  <div class="user-card-info">
+                    <strong>${escapeHtml(req.from.username)}</strong>
+                    <span>${escapeHtml(req.from.email)}</span>
+                  </div>
+                  <div class="request-actions">
+                    <button class="btn btn-success btn-sm btn-accept" data-id="${req.id}">Accept</button>
+                    <button class="btn btn-outline btn-sm btn-reject" data-id="${req.id}">Decline</button>
+                  </div>
                 </div>
-              </div>
-              <div>
-                <button class="btn-accept" data-id="${req.id}">Accept</button>
-                <button class="btn-reject" data-id="${req.id}">Reject</button>
-              </div>
-            </div>
-          `;
-        }).join('');
+              `;
+        }).join('')}
+          </div>
+        `;
 
         document.querySelectorAll('.btn-accept').forEach(btn => {
           btn.addEventListener('click', async () => {
             const reqId = (btn as HTMLElement).dataset.id!;
             try {
               await acceptFriendRequest(reqId);
-              alert('Friend request accepted!');
               renderRequestsTab();
             } catch (error: any) {
-              alert(`Error: ${error.message}`);
+              alert(error.message);
             }
           });
         });
@@ -158,52 +158,54 @@ export const renderFriendsPage = async (app: HTMLElement) => {
             const reqId = (btn as HTMLElement).dataset.id!;
             try {
               await rejectFriendRequest(reqId);
-              alert('Friend request rejected');
               renderRequestsTab();
             } catch (error: any) {
-              alert(`Error: ${error.message}`);
+              alert(error.message);
             }
           });
         });
       }
     } catch (error: any) {
-      requestsList.innerHTML = `<div class="error">${error.message}</div>`;
+      tabContent.innerHTML = `<div class="error">${error.message}</div>`;
     }
   };
 
   const renderFriendsTab = async () => {
-    tabContent.innerHTML = '<div id="friends-list" class="user-list"><div class="empty-state">Loading...</div></div>';
-    const friendsList = document.getElementById('friends-list') as HTMLElement;
+    tabContent.innerHTML = '<div class="empty-state">Loading friends...</div>';
 
     try {
       const friends = await getFriendsList();
 
       if (friends.length === 0) {
-        friendsList.innerHTML = '<div class="empty-state">No friends yet</div>';
+        tabContent.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">👋</div>
+            <p>No friends yet</p>
+            <p style="font-size: 0.813rem; margin-top: 8px; opacity: 0.7;">Find users and send friend requests!</p>
+          </div>
+        `;
       } else {
-        friendsList.innerHTML = friends.map((friend: any) => {
-          const initials = friend.username
-            .split(' ')
-            .map((n: string) => n[0])
-            .join('')
-            .substring(0, 2)
-            .toUpperCase();
+        tabContent.innerHTML = `
+          <div class="users-grid">
+            ${friends.map((friend: any) => {
+          const initials = friend.username.substring(0, 2).toUpperCase();
 
           return `
-            <div class="user-item">
-              <div class="user-info">
-                <div class="avatar">${initials}</div>
-                <div>
-                  <strong>${friend.username}</strong><br/>
-                  <small style="color: #888;">${friend.email}</small>
+                <div class="user-card friend-card">
+                  <div class="avatar">${initials}</div>
+                  <div class="user-card-info">
+                    <strong>${escapeHtml(friend.username)}</strong>
+                    <span>${escapeHtml(friend.email)}</span>
+                  </div>
+                  <button class="btn btn-ghost btn-sm">💬 Chat</button>
                 </div>
-              </div>
-            </div>
-          `;
-        }).join('');
+              `;
+        }).join('')}
+          </div>
+        `;
       }
     } catch (error: any) {
-      friendsList.innerHTML = `<div class="error">${error.message}</div>`;
+      tabContent.innerHTML = `<div class="error">${error.message}</div>`;
     }
   };
 
@@ -219,6 +221,5 @@ export const renderFriendsPage = async (app: HTMLElement) => {
     });
   });
 
-  // Initial tab
-  await renderUsersTab();
+  renderUsersTab();
 };

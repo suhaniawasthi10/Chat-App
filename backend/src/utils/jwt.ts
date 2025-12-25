@@ -4,7 +4,7 @@ import { config } from '../config/env';
 export const generateToken = (userId: string): string => {
     return jwt.sign({ userId }, config.jwtSecret, {
         expiresIn: config.jwtExpiresIn
-    });
+    } as jwt.SignOptions);
 };
 
 export const verifyToken = (token: string): { userId: string } => {

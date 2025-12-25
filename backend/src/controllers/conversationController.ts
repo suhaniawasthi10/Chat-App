@@ -2,17 +2,20 @@ import { Response } from 'express';
 import { AuthRequest } from '../middlewares/auth';
 import { conversationService } from '../services/conversationService';
 import { messageService } from '../services/messageService';
+import { validate, createConversationSchema } from '../utils/validation';
 
 export const conversationController = {
     async createConversation(req: AuthRequest, res: Response) {
         try {
             const userId = req.userId!;
-            const { participantIds, isGroup, name } = req.body;
 
-            if (!participantIds || !Array.isArray(participantIds)) {
-                res.status(400).json({ error: 'participantIds array is required' });
+            const validation = validate(createConversationSchema, req.body);
+            if (!validation.success) {
+                res.status(400).json({ error: validation.error });
                 return;
             }
+
+            const { participantIds, isGroup, name } = validation.data;
 
             // Include current user in participants
             if (!participantIds.includes(userId)) {
@@ -21,7 +24,7 @@ export const conversationController = {
 
             const result = await conversationService.createConversation(
                 participantIds,
-                isGroup || false,
+                isGroup,
                 name
             );
 

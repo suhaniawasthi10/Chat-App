@@ -5,6 +5,7 @@ import { renderRegisterPage } from './pages/RegisterPage';
 import { renderChatListPage } from './pages/ChatListPage';
 import { renderChatPage } from './pages/ChatPage';
 import { renderFriendsPage } from './pages/FriendsPage';
+import { renderProfilePage } from './pages/ProfilePage';
 
 const app = document.getElementById('app') as HTMLElement;
 
@@ -24,10 +25,10 @@ const navigate = (page: string, conversationId?: string) => {
 
     switch (page) {
         case 'login':
-            renderLoginPage(app, () => navigate('chatlist'));
+            renderLoginPage(app);
             break;
         case 'register':
-            renderRegisterPage(app, () => navigate('chatlist'));
+            renderRegisterPage(app);
             break;
         case 'chatlist':
             renderChatListPage(app);
@@ -41,6 +42,9 @@ const navigate = (page: string, conversationId?: string) => {
             break;
         case 'friends':
             renderFriendsPage(app);
+            break;
+        case 'profile':
+            renderProfilePage(app);
             break;
         default:
             navigate('login');

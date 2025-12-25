@@ -3,6 +3,7 @@ import { Conversation } from '../models/Conversation';
 import { User } from '../models/User';
 import { conversationService } from './conversationService';
 import { webhookService } from './webhookService';
+import { emitNewMessage } from './socketService';
 
 export const messageService = {
     async sendMessage(conversationId: string, senderId: string, text: string) {
@@ -41,16 +42,23 @@ export const messageService = {
             timestamp: message.createdAt
         });
 
-        return {
+        // Prepare message response
+        const messageResponse = {
             id: message._id,
             conversation: message.conversation,
             sender: {
                 id: sender._id,
-                username: sender.username
+                username: sender.username,
+                email: sender.email
             },
             text: message.text,
             createdAt: message.createdAt
         };
+
+        // Emit real-time message via WebSocket
+        emitNewMessage(conversationId, messageResponse);
+
+        return messageResponse;
     },
 
     async getMessages(conversationId: string, userId: string, limit: number = 50, before?: string) {

@@ -4,21 +4,28 @@ import { setToken } from '../api/client';
 export const renderLoginPage = (app: HTMLElement) => {
   app.innerHTML = `
     <div class="auth-container">
-      <h1>Chat App</h1>
-      <p>Welcome back!</p>
-      <div id="error-message"></div>
-      <form id="login-form">
-        <div class="form-group">
-          <label>Username</label>
-          <input type="text" id="username" required placeholder="Enter your username" />
+      <div class="auth-card">
+        <div class="auth-header">
+          <div class="auth-logo">💬</div>
+          <h1>ChatApp</h1>
+          <p>Welcome back! Sign in to continue.</p>
         </div>
-        <div class="form-group">
-          <label>Password</label>
-          <input type="password" id="password" required placeholder="Enter your password" />
+        <div id="error-message"></div>
+        <form id="login-form" class="auth-form">
+          <div class="form-group">
+            <label for="username">Username</label>
+            <input type="text" id="username" required placeholder="Enter your username" autocomplete="username" />
+          </div>
+          <div class="form-group">
+            <label for="password">Password</label>
+            <input type="password" id="password" required placeholder="Enter your password" autocomplete="current-password" />
+          </div>
+          <button type="submit" class="btn btn-primary">Sign In</button>
+        </form>
+        <div class="auth-footer">
+          Don't have an account? <a href="#" id="register-btn">Create one</a>
         </div>
-        <button type="submit" class="btn btn-primary">Sign In</button>
-        <button type="button" id="register-btn" class="btn btn-secondary">Create Account</button>
-      </form>
+      </div>
     </div>
   `;
 

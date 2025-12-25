@@ -1,9 +1,11 @@
 import { getConversations, getMessages } from '../api/conversations';
 import { sendMessage } from '../api/messages';
 import { getProfile } from '../api/users';
+import { connectSocket, joinConversation, leaveConversation, onNewMessage, offNewMessage } from '../api/socket';
+import { escapeHtml } from '../utils/sanitize';
 
-let pollInterval: number | null = null;
 let currentUserId: string | null = null;
+let currentMessages: any[] = [];
 
 export const renderChatPage = async (app: HTMLElement, conversationId: string) => {
   // Get current user
@@ -94,10 +96,13 @@ export const renderChatPage = async (app: HTMLElement, conversationId: string) =
   const sendBtn = document.getElementById('send-btn') as HTMLButtonElement;
 
   backBtn.addEventListener('click', () => {
-    if (pollInterval) clearInterval(pollInterval);
+    // Cleanup WebSocket listeners when leaving
+    leaveConversation(conversationId);
+    offNewMessage();
     window.dispatchEvent(new CustomEvent('navigate', { detail: { page: 'chatlist' } }));
   });
 
+  // Store messages for real-time updates
   let lastMessageId: string | null = null;
 
   const loadMessages = async () => {
@@ -112,10 +117,12 @@ export const renderChatPage = async (app: HTMLElement, conversationId: string) =
         const currentCount = messagesContainer.querySelectorAll('.message').length;
 
         if (lastMessageId !== uniqueKey || currentCount !== messages.length) {
+          currentMessages = messages; // Store for real-time updates
           renderMessages(messages);
           lastMessageId = uniqueKey;
         }
       } else if (messages.length === 0 && lastMessageId !== 'empty') {
+        currentMessages = [];
         renderMessages([]);
         lastMessageId = 'empty';
       }
@@ -168,8 +175,8 @@ export const renderChatPage = async (app: HTMLElement, conversationId: string) =
       return `
         ${dateDivider}
         <div class="message ${isSent ? 'sent' : 'received'}">
-          ${!isSent ? `<div class="message-sender">${msg.sender.username}</div>` : ''}
-          <div class="message-bubble">${msg.text}</div>
+          ${!isSent ? `<div class="message-sender">${escapeHtml(msg.sender.username)}</div>` : ''}
+          <div class="message-bubble">${escapeHtml(msg.text)}</div>
           <div class="message-time">${time}</div>
         </div>
       `;
@@ -204,8 +211,19 @@ export const renderChatPage = async (app: HTMLElement, conversationId: string) =
   // Initial load
   await loadMessages();
 
-  // Poll for new messages every 3 seconds
-  pollInterval = window.setInterval(loadMessages, 3000);
+  // Setup WebSocket for real-time messages
+  connectSocket();
+  joinConversation(conversationId);
+
+  // Listen for new messages via WebSocket
+  onNewMessage((message: any) => {
+    console.log('📨 New message received via WebSocket:', message);
+    // Add new message to the list and re-render
+    currentMessages.push(message);
+    renderMessages(currentMessages);
+    // Scroll to bottom for new messages
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+  });
 
   // Load sidebar conversations
   loadSidebarConversations(conversationId);
@@ -228,7 +246,7 @@ async function loadSidebarConversations(activeConvId: string) {
     sidebarContainer.innerHTML = conversations.map((conv: any) => {
       const otherParticipants = conv.participants
         .filter((p: any) => String(p.id) !== String(currentUserId))
-        .map((p: any) => p.username)
+        .map((p: any) => escapeHtml(p.username))
         .join(', ');
 
       const initials = otherParticipants
@@ -239,7 +257,7 @@ async function loadSidebarConversations(activeConvId: string) {
         .toUpperCase();
 
       const lastMsg = conv.lastMessage
-        ? `${conv.lastMessage.sender.username}: ${conv.lastMessage.text}`
+        ? `${escapeHtml(conv.lastMessage.sender.username)}: ${escapeHtml(conv.lastMessage.text)}`
         : 'No messages yet';
 
       const isActive = conv.id === activeConvId ? 'active' : '';
@@ -248,7 +266,7 @@ async function loadSidebarConversations(activeConvId: string) {
         <div class="conversation-item ${isActive}" data-id="${conv.id}">
           <div class="avatar">${initials}</div>
           <div class="conversation-info">
-            <h3>${conv.isGroup ? conv.name : otherParticipants}</h3>
+            <h3>${conv.isGroup ? escapeHtml(conv.name || '') : otherParticipants}</h3>
             <p>${lastMsg}</p>
           </div>
         </div>

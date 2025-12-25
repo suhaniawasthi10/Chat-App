@@ -1,17 +1,18 @@
 import { Response } from 'express';
 import { AuthRequest } from '../middlewares/auth';
 import { authService } from '../services/authService';
+import { validate, registerSchema, loginSchema } from '../utils/validation';
 
 export const authController = {
     async register(req: AuthRequest, res: Response) {
         try {
-            const { username, email, password } = req.body;
-
-            if (!username || !email || !password) {
-                res.status(400).json({ error: 'All fields are required' });
+            const validation = validate(registerSchema, req.body);
+            if (!validation.success) {
+                res.status(400).json({ error: validation.error });
                 return;
             }
 
+            const { username, email, password } = validation.data;
             const result = await authService.register(username, email, password);
             res.status(201).json(result);
         } catch (error: any) {
@@ -21,13 +22,13 @@ export const authController = {
 
     async login(req: AuthRequest, res: Response) {
         try {
-            const { username, password } = req.body;
-
-            if (!username || !password) {
-                res.status(400).json({ error: 'Username and password are required' });
+            const validation = validate(loginSchema, req.body);
+            if (!validation.success) {
+                res.status(400).json({ error: validation.error });
                 return;
             }
 
+            const { username, password } = validation.data;
             const result = await authService.login(username, password);
             res.json(result);
         } catch (error: any) {
