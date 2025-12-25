@@ -10,6 +10,9 @@ import { apiLimiter } from './middlewares/rateLimiter';
 
 const app = express();
 
+// Trust proxy (required when behind nginx/reverse proxy)
+app.set('trust proxy', 1);
+
 // Middleware
 app.use(cors());
 app.use(express.json());
