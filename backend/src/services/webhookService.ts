@@ -10,6 +10,11 @@ interface WebhookPayload {
 
 export const webhookService = {
     async triggerMessageWebhook(payload: WebhookPayload) {
+        // Skip webhook if not configured or using default localhost URL
+        if (!config.webhookUrl || config.webhookUrl.includes('localhost')) {
+            return; // Silently skip - no webhook configured
+        }
+
         try {
             const response = await fetch(config.webhookUrl, {
                 method: 'POST',

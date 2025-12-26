@@ -2,7 +2,6 @@ import { Message } from '../models/Message';
 import { Conversation } from '../models/Conversation';
 import { User } from '../models/User';
 import { conversationService } from './conversationService';
-import { webhookService } from './webhookService';
 import { emitNewMessage } from './socketService';
 
 export const messageService = {
@@ -32,15 +31,6 @@ export const messageService = {
             timestamp: message.createdAt
         };
         await conversation.save();
-
-        // Trigger webhook
-        await webhookService.triggerMessageWebhook({
-            conversationId,
-            senderId,
-            senderUsername: sender.username,
-            text,
-            timestamp: message.createdAt
-        });
 
         // Prepare message response
         const messageResponse = {
