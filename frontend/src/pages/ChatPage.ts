@@ -208,22 +208,27 @@ export const renderChatPage = async (app: HTMLElement, conversationId: string) =
     }
   });
 
-  // Initial load
-  await loadMessages();
-
-  // Setup WebSocket for real-time messages
+  // Setup WebSocket for real-time messages FIRST
   connectSocket();
   joinConversation(conversationId);
 
   // Listen for new messages via WebSocket
   onNewMessage((message: any) => {
     console.log('📨 New message received via WebSocket:', message);
-    // Add new message to the list and re-render
-    currentMessages.push(message);
-    renderMessages(currentMessages);
-    // Scroll to bottom for new messages
-    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    // Only add if it's for this conversation and not already in the list
+    if (message.conversation === conversationId) {
+      const exists = currentMessages.some(m => m.id === message.id);
+      if (!exists) {
+        currentMessages.push(message);
+        renderMessages(currentMessages);
+        // Scroll to bottom for new messages
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+      }
+    }
   });
+
+  // Initial load
+  await loadMessages();
 
   // Load sidebar conversations
   loadSidebarConversations(conversationId);
