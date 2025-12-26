@@ -1,7 +1,18 @@
 import { io, Socket } from 'socket.io-client';
 import { getToken } from './client';
 
-const SOCKET_URL = (import.meta as any).env?.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
+// Handle both relative (/api) and absolute URLs
+const getSocketUrl = (): string => {
+    const apiUrl = (import.meta as any).env?.VITE_API_URL || 'http://localhost:5000/api';
+    // If relative URL, use current origin
+    if (apiUrl.startsWith('/')) {
+        return window.location.origin;
+    }
+    // If absolute URL, remove /api suffix
+    return apiUrl.replace('/api', '');
+};
+
+const SOCKET_URL = getSocketUrl();
 
 let socket: Socket | null = null;
 
